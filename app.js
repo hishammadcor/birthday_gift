@@ -90,6 +90,21 @@ const endText      = $('endText');
 const ambientLight = $('ambientLight');
 const fallingPetalsEl = $('fallingPetals');
 
+/* hero — Act 0 (bow + arrow + heart) */
+const hero       = $('hero');
+const heroEyebrow = $('heroEyebrow');
+const heroHint   = $('heroHint');
+const archery    = $('archery');
+const bow        = $('bow');
+const arrow      = $('arrow');
+const aim        = $('aim');
+const strL       = $('strL');
+const strR       = $('strR');
+const serving    = $('serving');
+const target     = $('target');
+const tip        = $('tip');
+const heroBurst  = $('heroBurst');
+
 const CANDLES = 5;
 
 /* ============================================================
@@ -1033,8 +1048,8 @@ function resetAll(){
   titleChars.forEach(ch => { ch.getAnimations().forEach(a => a.cancel()); });
   msgEyebrow.getAnimations().forEach(a => a.cancel());
   msgSub.getAnimations().forEach(a => a.cancel());
-  eyebrow.classList.remove('is-out');
-  controls.classList.remove('is-out');
+  eyebrow.classList.remove('is-out', 'is-in');
+  controls.classList.remove('is-out', 'is-in');
   micBtn.disabled = false;
   micLabel.textContent = 'Use my breath';
   meter.hidden = true;
@@ -1059,13 +1074,232 @@ function resetAll(){
   songWanted = false;
   if (song){ try { song.pause(); song.currentTime = 0; } catch (e) {} }
 
-  announce('Candles relit.');
-  startLoop();
-  requestAnimationFrame(() => {
-    eyebrow.classList.add('is-in');
-    controls.classList.add('is-in');
+  /* rewind Act 0 — the bow is ready to draw again */
+  heroPlayed = false; drawing = false; curDraw = 0;
+  archery.classList.remove('drawing');
+  hero.classList.remove('gone', 'in');
+  heroHint.classList.remove('gone');
+  heroEyebrow.classList.remove('gone');
+  target.classList.remove('struck');
+  arrow.style.opacity = '';
+  aim.style.opacity = 0;
+  while (heroBurst.firstChild) heroBurst.removeChild(heroBurst.firstChild);
+
+  announce('Again.');
+  if (reduceMotion){
+    hero.hidden = true;
+    drawStill();
+  } else {
+    startLoop();
+    enterHero();
+  }
+}
+
+/* ============================================================
+   ACT 0 — draw the bow, hit the heart
+   ------------------------------------------------------------
+   Reimplemented dependency-free from the happy-birthday-tree
+   reference. The rig is anchored lower-left and rotated so its
+   local "up" points at the heart; dragging back along that axis
+   draws the string, and releasing looses the arrow. The strike
+   hands off to Act 1 (the cake).
+   ============================================================ */
+const REST_NOCK = 96;                 // string nock, in the bow's viewBox units
+let svgScale = 1, arrowBaseX = 0, arrowBaseY = 0, maxDraw = 120, curDraw = 0;
+let pullUX = 0, pullUY = 1;           // screen unit vector: the string pull-back axis
+let heroPlayed = false, drawing = false, startPX = 0, startPY = 0, startDraw = 0;
+
+function applyNock(y){ strL.setAttribute('y2', y); strR.setAttribute('y2', y); serving.setAttribute('cy', y); }
+function setArrow(y){ arrow.style.transform = `translate(${arrowBaseX}px, ${y}px)`; }
+
+function refreshRig(){
+  const VW = window.innerWidth, VH = window.innerHeight;
+  const gripX = VW * 0.24, gripY = VH * 0.76;
+  const heartX = VW * 0.5,  heartY = VH * 0.34;
+  /* rotation so local up (0,-1) maps to grip→heart; pull-back is the opposite */
+  const aimRad = Math.atan2(heartX - gripX, gripY - heartY);
+  pullUX = -Math.sin(aimRad); pullUY = Math.cos(aimRad);
+
+  /* measure in the rig's LOCAL frame — neutralise its transform first */
+  applyNock(REST_NOCK);
+  archery.style.left = '0px'; archery.style.top = '0px';
+  archery.style.transformOrigin = '0 0';
+  archery.style.transform = 'none';
+  arrow.style.transform = 'translate(0px, 0px)';
+
+  const aR = archery.getBoundingClientRect();
+  const bR = bow.getBoundingClientRect();
+  const sR = serving.getBoundingClientRect();
+  const rR = arrow.getBoundingClientRect();
+  if (bR.width === 0) return;           // not laid out yet
+  svgScale = bR.width / 460;
+  const gripLX = (bR.left - aR.left) + 0.5 * bR.width;
+  const gripLY = (bR.top  - aR.top ) + (240 / 300) * bR.height;   // grip ~y240 in viewBox
+  const nockLX = (sR.left - aR.left) + 0.5 * sR.width;
+  const nockLY = (sR.top  - aR.top ) + 0.5 * sR.height;
+  arrowBaseX = nockLX - ((rR.left - aR.left) + 0.5 * rR.width);
+  arrowBaseY = nockLY - ((rR.top  - aR.top ) + (205 / 220) * rR.height);
+
+  archery.style.left = (gripX - gripLX) + 'px';
+  archery.style.top  = (gripY - gripLY) + 'px';
+  archery.style.transformOrigin = `${gripLX}px ${gripLY}px`;
+  archery.style.transform = `rotate(${aimRad}rad)`;
+  maxDraw = Math.min(bR.height * 0.72, VH * 0.16, 132);
+  curDraw = 0;
+  setArrow(arrowBaseY);
+}
+
+function setDraw(d){
+  curDraw = clamp(d, 0, maxDraw);
+  setArrow(arrowBaseY + curDraw);                    // local +Y = pull back
+  applyNock(REST_NOCK + curDraw / svgScale);
+  aim.style.opacity = 0.55 * (curDraw / maxDraw);
+}
+
+const easeOutCubic = (p) => 1 - Math.pow(1 - p, 3);
+function tween(dur, onUpdate, onDone){
+  const t0 = performance.now();
+  (function step(now){
+    const p = Math.min((now - t0) / dur, 1);
+    onUpdate(p);
+    if (p < 1) requestAnimationFrame(step);
+    else if (onDone) onDone();
+  })(t0);
+}
+
+function springBack(){
+  const from = curDraw;
+  tween(480, (p) => setDraw(from * (1 - easeOutCubic(p))));
+}
+
+function autoFire(){                                  // keyboard route
+  if (heroPlayed) return;
+  const from = curDraw, to = maxDraw * 0.94;
+  tween(560, (p) => {
+    const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;   // inOutQuad
+    setDraw(from + (to - from) * e);
+  }, () => setTimeout(fireArrow, 150));
+}
+
+function snapString(){
+  const fromNock = REST_NOCK + curDraw / svgScale;
+  tween(430, (p) => {
+    /* elastic-out so the string twangs back */
+    const e = p === 1 ? 1 : 1 - Math.pow(2, -10 * p) * Math.cos((p * 10 - 0.75) * (2 * Math.PI / 3));
+    applyNock(fromNock + (REST_NOCK - fromNock) * e);
   });
 }
+
+function miniHeartSVG(fill){
+  return `<svg viewBox="0 0 24 22" width="100%" height="100%"><path d="M12 20C5.5 15 1.5 11.4 1.5 6.9 1.5 3.6 4 1.5 7 1.5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 3 0 5.5 2.1 5.5 5.4C23.5 11.4 19.5 15 12 20Z" fill="${fill}"/></svg>`;
+}
+function burstHearts(){
+  const r = target.getBoundingClientRect();
+  const ox = r.left + r.width / 2, oy = r.top + r.height * 0.44;
+  const cols = ['#ff6f97', '#ffb14e', '#ff8fae', '#ffd36a', '#e23b67'];
+  for (let i = 0; i < 14; i++){
+    const heart = i < 9;
+    const el = document.createElement('span');
+    el.className = 'burst' + (heart ? ' burst--heart' : '');
+    const s = heart ? 12 + Math.random() * 10 : 4 + Math.random() * 4;
+    el.style.left = ox + 'px';
+    el.style.top = oy + 'px';
+    el.style.width = s + 'px';
+    el.style.height = s + 'px';
+    if (heart) el.innerHTML = miniHeartSVG(cols[Math.floor(Math.random() * cols.length)]);
+    const ang = -Math.PI * Math.random();               // fan upward + out
+    const dist = heart ? 70 + Math.random() * 120 : 40 + Math.random() * 80;
+    el.style.setProperty('--bx', `${Math.cos(ang) * dist}px`);
+    el.style.setProperty('--by', `${Math.sin(ang) * dist - (10 + Math.random() * 40)}px`);
+    el.style.setProperty('--br', `${Math.random() * 240 - 120}deg`);
+    el.style.setProperty('--bs', heart ? 0.7 + Math.random() * 0.5 : 0.4 + Math.random() * 0.6);
+    el.style.animationDelay = `${Math.random() * 0.05}s`;
+    heroBurst.appendChild(el);
+    setTimeout(() => el.remove(), 1300);
+  }
+}
+
+function fireArrow(){
+  if (heroPlayed) return;
+  heroPlayed = true;
+  drawing = false;
+  archery.classList.remove('drawing');
+  heroHint.classList.add('gone');
+  heroEyebrow.classList.add('gone');
+  aim.style.opacity = 0;
+  target.classList.remove('beating');
+
+  /* straight-line flight from the arrow tip to the heart centre */
+  const tipR = tip.getBoundingClientRect();
+  const tRect = target.getBoundingClientRect();
+  const tipX = tipR.left + tipR.width / 2, tipY = tipR.top + tipR.height / 2;
+  const tcx = tRect.left + tRect.width / 2, tcy = tRect.top + tRect.height / 2;
+  const flightDist = Math.hypot(tcx - tipX, tcy - tipY);
+  const startY = arrowBaseY + curDraw;
+  const flyY = startY - flightDist;                   // local -Y = toward the heart
+
+  snapString();
+  tween(270, (p) => setArrow(startY + (flyY - startY) * (p * p)), onStrike);   // ease-in
+}
+
+function onStrike(){
+  arrow.style.opacity = '0';
+  target.classList.add('struck');
+  burstHearts();
+  setTimeout(heroHandoff, 640);
+}
+
+function heroHandoff(){
+  hero.classList.add('gone');
+  setTimeout(() => { hero.hidden = true; }, 950);
+  enterCandles();                                     // the cake takes over
+}
+
+/* the candle room's own intro — deferred until Act 0 hands off */
+function enterCandles(){
+  startLoop();
+  eyebrow.classList.add('is-in');
+  controls.classList.add('is-in');
+}
+
+function enterHero(){
+  hero.hidden = false;
+  refreshRig();
+  setDraw(0);
+  requestAnimationFrame(() => {
+    hero.classList.add('in');
+    target.classList.add('beating');
+  });
+}
+
+archery.addEventListener('pointerdown', (e) => {
+  if (heroPlayed) return;
+  primeAudio();                                       // first tap also blesses the song
+  drawing = true;
+  try { archery.setPointerCapture(e.pointerId); } catch (_) {}
+  startPX = e.clientX; startPY = e.clientY; startDraw = curDraw;
+  archery.classList.add('drawing');
+  e.preventDefault();
+});
+archery.addEventListener('pointermove', (e) => {
+  if (!drawing) return;
+  /* project the drag onto the pull-back axis, so dragging back along the aim
+     draws the string on any shot angle */
+  const proj = (e.clientX - startPX) * pullUX + (e.clientY - startPY) * pullUY;
+  setDraw(startDraw + proj);
+});
+function endDraw(){
+  if (!drawing) return;
+  drawing = false;
+  archery.classList.remove('drawing');
+  if (curDraw > maxDraw * 0.26) fireArrow(); else springBack();
+}
+archery.addEventListener('pointerup', endDraw);
+archery.addEventListener('pointercancel', endDraw);
+archery.addEventListener('keydown', (e) => {
+  if (heroPlayed) return;
+  if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); primeAudio(); autoFire(); }
+});
 
 /* ============================================================
    SIZING + BOOT
@@ -1083,22 +1317,28 @@ function resize(){
 let resizeRAF = 0;
 window.addEventListener('resize', () => {
   if (resizeRAF) return;
-  resizeRAF = requestAnimationFrame(() => { resizeRAF = 0; resize(); });
+  resizeRAF = requestAnimationFrame(() => {
+    resizeRAF = 0;
+    resize();
+    /* keep the bow aimed while Act 0 is still on screen and unfired */
+    if (!reduceMotion && !hero.hidden && !heroPlayed){ refreshRig(); setDraw(0); }
+  });
 });
 
 splitTitle();
 resize();
 
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {
+  resize();
+  if (!reduceMotion && !hero.hidden && !heroPlayed){ refreshRig(); setDraw(0); }
+});
 
 if (reduceMotion){
+  hero.hidden = true;               // Act 0 is skipped
   drawStill();
 } else {
-  startLoop();
-  requestAnimationFrame(() => {
-    eyebrow.classList.add('is-in');
-    controls.classList.add('is-in');
-  });
+  startLoop();                      // the room comes alive behind the hero
+  enterHero();                      // reveal the bow + heart; the shot begins Act 1
 }
 
 /* pause the canvas loop when the tab is hidden — but never fight the rose,
