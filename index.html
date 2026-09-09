@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Happy Birthday, Anan</title>
+  <meta name="description" content="A birthday cake in a dark room, and one thing to do: blow. Your breath puts the candles out — and a rose blooms for Anan." />
+  <meta name="theme-color" content="#0d0908" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%B9%3C/text%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <script>document.documentElement.classList.add('js')</script>
+  <link rel="stylesheet" href="./app.css" />
+</head>
+<body>
+
+  <!-- ===================================================================
+       ACT 1 — the room. One canvas drives room, cake, candles, flames,
+       smoke through a single rAF loop. Blow to put the candles out.
+       =================================================================== -->
+  <main class="stage" id="stage">
+
+    <canvas id="scene" class="scene" role="img"
+            aria-label="A birthday cake for Anan in a dark room with five lit candles"></canvas>
+
+    <!-- the ask -->
+    <p class="eyebrow" id="eyebrow">make a wish, anan</p>
+
+    <!-- the payoff — [hidden] until the last candle is out -->
+    <div class="msg" id="msg" hidden>
+      <p class="msg__eyebrow" id="msgEyebrow">every candle, first try</p>
+      <h1 class="msg__title" id="msgTitle">Happy Birthday</h1>
+      <p class="msg__sub" id="msgSub">something's blooming for you…</p>
+    </div>
+
+    <!-- the control — mic is offered, never forced; hold-to-blow always works -->
+    <div class="controls" id="controls">
+      <button class="btn btn--mic" id="micBtn" type="button">
+        <span class="btn__mic" aria-hidden="true"></span>
+        <span id="micLabel">Use my breath</span>
+      </button>
+      <button class="btn btn--hold" id="holdBtn" type="button">or hold to blow</button>
+      <p class="note" id="note">Your audio is analysed on-device and never leaves this page.</p>
+    </div>
+
+    <!-- live breath readout — shown only while the mic is actually listening -->
+    <div class="meter" id="meter" hidden aria-hidden="true">
+      <div class="meter__track"><div class="meter__fill" id="meterFill"></div></div>
+      <p class="meter__label" id="meterLabel">listening…</p>
+    </div>
+
+    <!-- one polite channel for state changes -->
+    <p class="sr-only" role="status" aria-live="polite" id="live"></p>
+  </main>
+
+  <!-- ===================================================================
+       ACT 2 — the rose. Revealed once the candles are out. A single
+       stem grows from the dark and a rose blooms while the song plays.
+       =================================================================== -->
+  <div class="rose-stage" id="roseStage" aria-hidden="true">
+    <div class="vignette"></div>
+    <div class="spotlight"></div>
+    <div class="ambient-light" id="ambientLight"></div>
+
+    <div class="rose-scene">
+      <div class="rose-wrapper" id="roseWrapper">
+        <div class="stem-group">
+          <div class="stem" id="stem">
+            <div class="stem-highlight"></div>
+          </div>
+          <div class="thorn thorn-1" id="thorn1"></div>
+          <div class="thorn thorn-2" id="thorn2"></div>
+          <div class="leaf leaf-left" id="leafLeft">
+            <div class="leaf-vein"></div>
+          </div>
+          <div class="leaf leaf-right" id="leafRight">
+            <div class="leaf-vein"></div>
+          </div>
+        </div>
+
+        <div class="calyx" id="calyx"></div>
+
+        <div class="rose-head" id="roseHead">
+          <div class="rose-glow"></div>
+          <div class="rose-glow-inner"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="end-text" id="endText">
+      <p class="tagline" id="tagline">here's to a year that blooms, <span class="name">Anan</span></p>
+      <span class="rose-emoji" aria-hidden="true">🌹</span>
+    </div>
+
+    <div id="fallingPetals"></div>
+  </div>
+
+  <!-- persists above both acts -->
+  <button class="replay" id="replay" type="button" hidden>
+    <span aria-hidden="true">↺</span> Again
+  </button>
+
+  <!-- the song — starts from 0:30 the instant the candles go out -->
+  <audio id="song" src="Happy%20Birthday.mp3" preload="auto" playsinline></audio>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
