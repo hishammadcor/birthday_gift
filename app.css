@@ -297,6 +297,192 @@ body{
 .replay:focus-visible{ outline:2px solid var(--c-flame); outline-offset:3px; }
 
 /* ============================================================
+   ACT 0 — THE INVITATION (bow + arrow + beating heart)
+   Full-screen, on top of the room. Draw the bow and release to
+   loose the arrow into the heart; the strike hands off to Act 1.
+   ============================================================ */
+.hero{
+  position:fixed; top:0; right:0; bottom:0; left:0;
+  z-index:80;
+  overflow:hidden;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none; user-select:none;
+  opacity:1;
+  transition:opacity .9s var(--ease-out), visibility .9s var(--ease-out);
+}
+.hero.gone{ opacity:0; visibility:hidden; pointer-events:none; }
+
+.hero__bg{
+  position:absolute; top:0; right:0; bottom:0; left:0;
+  background:
+    radial-gradient(115% 80% at 50% 30%, #23100a 0%, #150b07 42%, #0a0503 74%, #030101 100%);
+}
+.hero__bg::after{
+  content:""; position:absolute; left:50%; top:34%;
+  width:min(82vw,760px); aspect-ratio:1; transform:translate(-50%,-50%);
+  background:radial-gradient(circle, rgba(255,120,110,.20), rgba(255,60,90,.08) 46%, transparent 70%);
+  filter:blur(8px);
+  pointer-events:none;
+}
+
+.hero__eyebrow{
+  position:absolute; top:12%; left:0; right:0;
+  text-align:center;
+  font-family:var(--font-display);
+  font-style:italic;
+  font-size:clamp(18px, 3.6vw, 30px);
+  letter-spacing:.02em;
+  color:rgba(255,225,220,.92);
+  text-shadow:0 2px 26px rgba(0,0,0,.6);
+  opacity:0;
+  transform:translateY(10px);
+  transition:opacity .9s var(--ease-out), transform .9s var(--ease-out);
+  pointer-events:none;
+}
+.hero.in .hero__eyebrow{ opacity:.94; transform:none; }
+.hero__eyebrow.gone{ opacity:0; transform:translateY(-8px); transition-duration:.4s; }
+
+.targetWrap{
+  position:absolute; top:34%; left:0; right:0;
+  display:flex; justify-content:center;
+  transform:translateY(-50%);
+  pointer-events:none;
+}
+.target{
+  position:relative;
+  width:clamp(120px, 26vw, 200px);
+  aspect-ratio:100/92;
+  will-change:transform;
+  transform-origin:50% 60%;
+  opacity:0;
+  transition:opacity .8s var(--ease-out), transform .8s var(--ease-out);
+}
+.hero.in .target{ opacity:1; }
+.target__heart{ position:absolute; top:0; right:0; bottom:0; left:0; display:block; }
+
+.heart__glow{
+  position:absolute; left:50%; top:52%;
+  width:240%; aspect-ratio:1; transform:translate(-50%,-50%) scale(1);
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(255,80,120,.5), rgba(255,60,100,.16) 42%, transparent 68%);
+  filter:blur(6px);
+  pointer-events:none;
+  will-change:transform, opacity;
+}
+.heart__svg{
+  width:100%; height:100%; display:block;
+  transform-origin:50% 60%;
+  filter:
+    drop-shadow(0 10px 26px rgba(200,20,70,.42))
+    drop-shadow(0 0 34px rgba(255,70,110,.28));
+  will-change:transform;
+}
+
+/* the beat — gentle, alive; stopped the instant the arrow strikes */
+.target.beating .heart__svg{ animation:heartBeat 1.45s ease-in-out infinite; }
+.target.beating .heart__glow{ animation:heartGlow 1.45s ease-in-out infinite; }
+@keyframes heartBeat{
+  0%,52%,100%{ transform:scale(1); }
+  12%{ transform:scale(1.09); }
+  24%{ transform:scale(1); }
+  36%{ transform:scale(1.05); }
+}
+@keyframes heartGlow{
+  0%,100%{ opacity:.55; transform:translate(-50%,-50%) scale(1); }
+  14%{ opacity:.92; transform:translate(-50%,-50%) scale(1.16); }
+  36%{ opacity:.7; transform:translate(-50%,-50%) scale(1.06); }
+}
+/* the pierce recoil */
+.target.struck{ animation:heartStruck .6s cubic-bezier(.2,.7,.3,1) forwards; }
+@keyframes heartStruck{
+  0%{ transform:translate(0,0) scale(1); }
+  28%{ transform:translate(7px,-9px) scale(1.15); }
+  60%{ transform:translate(0,0) scale(1); }
+  100%{ transform:translate(0,3px) scale(1.04); }
+}
+
+/* the bow + arrow rig — JS sets left/top + rotation around the grip */
+.archery{
+  position:absolute; top:0; left:0;
+  width:clamp(104px, 19vw, 172px);
+  cursor:grab;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:none;
+  will-change:transform;
+  opacity:0;
+  transition:opacity .8s var(--ease-out);
+}
+.hero.in .archery{ opacity:1; }
+.archery:active{ cursor:grabbing; }
+.archery.drawing{ cursor:grabbing; }
+.archery:focus-visible{ outline:none; }
+.archery:focus-visible .bow{ filter:drop-shadow(0 0 0 3px rgba(255,220,180,.85)) drop-shadow(0 10px 18px rgba(120,50,20,.4)); }
+.bow{
+  display:block; width:100%; height:auto;
+  filter:drop-shadow(0 12px 20px rgba(0,0,0,.5));
+  overflow:visible;
+}
+.aim{
+  position:absolute; left:50%; bottom:32%;
+  width:2px; height:190%; margin-left:-1px;
+  transform-origin:bottom center;
+  background:linear-gradient(0deg, rgba(255,205,140,.7) 0%, rgba(255,140,150,.28) 52%, transparent 78%);
+  opacity:0; pointer-events:none;
+}
+.arrow{
+  position:absolute; left:0; right:0; margin-inline:auto;
+  bottom:36%;
+  width:17.5%; height:auto;
+  overflow:visible;
+  will-change:transform, opacity;
+  filter:drop-shadow(0 5px 9px rgba(0,0,0,.5));
+}
+.arrow__wings{ transform-box:fill-box; transform-origin:50% 90%; }
+.arrow__wings .wingL,
+.arrow__wings .wingR{ transform-box:fill-box; }
+.wingL{ transform-origin:88% 60%; animation:flapL 2.6s ease-in-out infinite; }
+.wingR{ transform-origin:12% 60%; animation:flapR 2.6s ease-in-out infinite; }
+@keyframes flapL{ 0%,100%{ transform:rotate(0deg); } 50%{ transform:rotate(-11deg); } }
+@keyframes flapR{ 0%,100%{ transform:rotate(0deg); } 50%{ transform:rotate(11deg); } }
+
+.hero__hint{
+  position:absolute; bottom:8.5%; left:0; right:0;
+  text-align:center;
+  font-family:var(--font-display);
+  font-style:italic;
+  font-size:clamp(14px, 3.1vw, 20px);
+  letter-spacing:.14em; text-transform:lowercase;
+  color:rgba(255,190,150,.72);
+  opacity:0;
+  transition:opacity .9s var(--ease-out) .3s;
+  pointer-events:none;
+}
+.hero.in .hero__hint{ opacity:1; }
+.hero__hint.gone{ opacity:0; transition-duration:.3s; transition-delay:0s; }
+
+/* the burst of little hearts where the arrow strikes */
+.hero__burst{ position:absolute; top:0; right:0; bottom:0; left:0; pointer-events:none; z-index:6; }
+.burst{
+  position:absolute;
+  transform:translate(-50%,-50%) scale(.3);
+  will-change:transform, opacity;
+  opacity:0;
+  animation:burstFly 1.1s cubic-bezier(.2,.7,.3,1) forwards;
+}
+.burst:not(.burst--heart){
+  border-radius:50%;
+  background:radial-gradient(circle, #fff, rgba(255,210,150,0) 70%);
+}
+@keyframes burstFly{
+  0%{ transform:translate(-50%,-50%) scale(.3); opacity:0; }
+  16%{ opacity:1; }
+  100%{
+    transform:translate(calc(-50% + var(--bx,0px)), calc(-50% + var(--by,0px))) rotate(var(--br,0deg)) scale(var(--bs,1));
+    opacity:0;
+  }
+}
+
+/* ============================================================
    ACT 2 — THE ROSE STAGE
    Full-screen, layered above the room, revealed only once the
    candles are out. Starts inert so it never eats Act 1's taps.
@@ -706,4 +892,6 @@ body{
   }
   .msg__ch{ opacity:1; transform:none; }
   .stage{ transition-duration:.001ms !important; }
+  /* Act 0 is a pure interaction flourish — skip it entirely */
+  .hero{ display:none !important; }
 }
